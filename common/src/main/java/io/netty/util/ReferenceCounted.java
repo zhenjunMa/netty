@@ -29,6 +29,17 @@ package io.netty.util;
  * reference count becomes 0.
  * </p>
  */
+
+/**
+ * 一个reference-counted对象需要明确的释放。
+ *
+ * ReferenceCounted对象初始化时，它的引用计数从1开始。retain()用来增加引用计数，release()用来减少引用计数。
+ * 如果引用计数减少到0，该对象就会被回收，此后所有想要访问该对象的操作都会报错。
+ *
+ * 如果ReferenceCounted的子类是一个其他实现ReferenceCounted的对象的容器，这些被包含的对象会在容器的引用数降为0时
+ * 通过release()释放。
+ *
+ */
 public interface ReferenceCounted {
     /**
      * Returns the reference count of this object.  If {@code 0}, it means this object has been deallocated.
@@ -50,12 +61,23 @@ public interface ReferenceCounted {
      * If this object is determined to be leaked, the information recorded by this operation will be provided to you
      * via {@link ResourceLeakDetector}.  This method is a shortcut to {@link #touch(Object) touch(null)}.
      */
+    /**
+     * 记录当前访问该对象的位置，用于debug
+     *
+     * @return
+     */
     ReferenceCounted touch();
 
     /**
      * Records the current access location of this object with an additional arbitrary information for debugging
      * purposes.  If this object is determined to be leaked, the information recorded by this operation will be
      * provided to you via {@link ResourceLeakDetector}.
+     */
+    /**
+     * 记录当前访问该对象的位置，并附加额外的信息
+     *
+     * @param hint
+     * @return
      */
     ReferenceCounted touch(Object hint);
 

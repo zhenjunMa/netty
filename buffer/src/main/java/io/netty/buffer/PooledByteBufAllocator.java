@@ -96,12 +96,14 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
          * See https://github.com/netty/netty/issues/3888.
          */
         final int defaultMinNumArena = NettyRuntime.availableProcessors() * 2;
+        //16MB
         final int defaultChunkSize = DEFAULT_PAGE_SIZE << DEFAULT_MAX_ORDER;
         DEFAULT_NUM_HEAP_ARENA = Math.max(0,
                 SystemPropertyUtil.getInt(
                         "io.netty.allocator.numHeapArenas",
                         (int) Math.min(
                                 defaultMinNumArena,
+                                //每个arena有3个chunk,且不能使用超过50%的内存
                                 runtime.maxMemory() / defaultChunkSize / 2 / 3)));
         DEFAULT_NUM_DIRECT_ARENA = Math.max(0,
                 SystemPropertyUtil.getInt(
@@ -226,16 +228,22 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
                                   int tinyCacheSize, int smallCacheSize, int normalCacheSize,
                                   boolean useCacheForAllThreads, int directMemoryCacheAlignment) {
         super(preferDirect);
+        //useCacheForAllThreads:默认为true
         threadCache = new PoolThreadLocalCache(useCacheForAllThreads);
+        //512
         this.tinyCacheSize = tinyCacheSize;
+        //256
         this.smallCacheSize = smallCacheSize;
+        //64
         this.normalCacheSize = normalCacheSize;
+        //计算总大小，pageSize * 2 ^ maxOrder
         chunkSize = validateAndCalculateChunkSize(pageSize, maxOrder);
 
         checkPositiveOrZero(nHeapArena, "nHeapArena");
         checkPositiveOrZero(nDirectArena, "nDirectArena");
 
         checkPositiveOrZero(directMemoryCacheAlignment, "directMemoryCacheAlignment");
+        // directMemoryCacheAlignment 默认是0
         if (directMemoryCacheAlignment > 0 && !isDirectMemoryCacheAlignmentSupported()) {
             throw new IllegalArgumentException("directMemoryCacheAlignment is not supported");
         }
@@ -333,8 +341,12 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
     }
 
     @Override
+    //这里是在netty中分配内存的最终入口
+    //内存分配的流程是：PooledByteBufAllocator -> PoolThreadCache -> PoolArena(DirectArena) -> MemoryRegionCache -> PoolChunk
     protected ByteBuf newDirectBuffer(int initialCapacity, int maxCapacity) {
+        //ThreadLocal
         PoolThreadCache cache = threadCache.get();
+        //通过directArena来达到分段锁的目的，减小冲突
         PoolArena<ByteBuffer> directArena = cache.directArena;
 
         final ByteBuf buf;
@@ -346,6 +358,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
                     new UnpooledDirectByteBuf(this, initialCapacity, maxCapacity);
         }
 
+        //追踪内存泄漏问题
         return toLeakAwareBuffer(buf);
     }
 
@@ -450,6 +463,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
 
         @Override
         protected synchronized PoolThreadCache initialValue() {
+            //分配当前被最少线程使用的arena
             final PoolArena<byte[]> heapArena = leastUsedArena(heapArenas);
             final PoolArena<ByteBuffer> directArena = leastUsedArena(directArenas);
 
@@ -457,8 +471,10 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
             if (useCacheForAllThreads || current instanceof FastThreadLocalThread) {
                 final PoolThreadCache cache = new PoolThreadCache(
                         heapArena, directArena, tinyCacheSize, smallCacheSize, normalCacheSize,
+                        //32KB                               8KB
                         DEFAULT_MAX_CACHED_BUFFER_CAPACITY, DEFAULT_CACHE_TRIM_INTERVAL);
 
+                //DEFAULT_CACHE_TRIM_INTERVAL_MILLIS 默认是0
                 if (DEFAULT_CACHE_TRIM_INTERVAL_MILLIS > 0) {
                     final EventExecutor executor = ThreadExecutorMap.currentExecutor();
                     if (executor != null) {

@@ -35,6 +35,7 @@ import static io.netty.util.internal.ObjectUtil.checkPositiveOrZero;
  * {@link UnpooledByteBufAllocator#directBuffer(int, int)}, {@link Unpooled#directBuffer(int)} and
  * {@link Unpooled#wrappedBuffer(ByteBuffer)} instead of calling the constructor explicitly.
  */
+//基于对Java NIO原生的ByteBuffer的封装。
 public class UnpooledDirectByteBuf extends AbstractReferenceCountedByteBuf {
 
     private final ByteBufAllocator alloc;

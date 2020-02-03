@@ -98,6 +98,7 @@ abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
             return this;
         }
         checkNewCapacity(newCapacity);
+        //非池化的，比如开始分配的内存大于8K
         if (!chunk.unpooled) {
             // If the request capacity does not require reallocation, just update the length of the memory.
             if (newCapacity > length) {

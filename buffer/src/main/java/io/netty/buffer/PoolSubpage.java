@@ -21,6 +21,7 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
     final PoolChunk<T> chunk;
     private final int memoryMapIdx;
     private final int runOffset;
+    //所属页的size
     private final int pageSize;
     private final long[] bitmap;
 
@@ -28,6 +29,7 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
     PoolSubpage<T> next;
 
     boolean doNotDestroy;
+    //分割后的片段size
     int elemSize;
     private int maxNumElems;
     private int bitmapLength;

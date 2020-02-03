@@ -69,6 +69,15 @@ import java.util.Arrays;
  * provided and their name is all {@code copiedBuffer()}.  It is also convenient
  * to use this operation to merge multiple buffers into one buffer.
  */
+
+/**
+ * wrapped buffer：对一个或多个byte数组或者buffer进行封装，底层数据是共享的
+ *
+ * copied buffer：对一个或多个byte数组或者buffer中的数据进行拷贝，因此修改原来的数据不会影响新的buffer
+ *
+ * Unpooled数组由于继承了CountReference，因此它的引用计数初始为1，它支持手动release，但是如果没有
+ * 手动release，也就说说即使引用数没有降为0，那么在当前对象没有引用是会通过GC回收。
+ */
 public final class Unpooled {
 
     private static final ByteBufAllocator ALLOC = UnpooledByteBufAllocator.DEFAULT;

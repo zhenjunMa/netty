@@ -24,13 +24,12 @@ import io.netty.util.internal.ReferenceCountUpdater;
  * Abstract base class for {@link ByteBuf} implementations that count references.
  */
 public abstract class AbstractReferenceCountedByteBuf extends AbstractByteBuf {
-    private static final long REFCNT_FIELD_OFFSET =
-            ReferenceCountUpdater.getUnsafeOffset(AbstractReferenceCountedByteBuf.class, "refCnt");
-    private static final AtomicIntegerFieldUpdater<AbstractReferenceCountedByteBuf> AIF_UPDATER =
-            AtomicIntegerFieldUpdater.newUpdater(AbstractReferenceCountedByteBuf.class, "refCnt");
 
-    private static final ReferenceCountUpdater<AbstractReferenceCountedByteBuf> updater =
-            new ReferenceCountUpdater<AbstractReferenceCountedByteBuf>() {
+    private static final long REFCNT_FIELD_OFFSET = ReferenceCountUpdater.getUnsafeOffset(AbstractReferenceCountedByteBuf.class, "refCnt");
+
+    private static final AtomicIntegerFieldUpdater<AbstractReferenceCountedByteBuf> AIF_UPDATER = AtomicIntegerFieldUpdater.newUpdater(AbstractReferenceCountedByteBuf.class, "refCnt");
+
+    private static final ReferenceCountUpdater<AbstractReferenceCountedByteBuf> updater = new ReferenceCountUpdater<AbstractReferenceCountedByteBuf>() {
         @Override
         protected AtomicIntegerFieldUpdater<AbstractReferenceCountedByteBuf> updater() {
             return AIF_UPDATER;
@@ -43,7 +42,7 @@ public abstract class AbstractReferenceCountedByteBuf extends AbstractByteBuf {
 
     // Value might not equal "real" reference count, all access should be via the updater
     @SuppressWarnings("unused")
-    private volatile int refCnt = updater.initialValue();
+    private volatile int refCnt = updater.initialValue();//这里初始值返回的居然是2
 
     protected AbstractReferenceCountedByteBuf(int maxCapacity) {
         super(maxCapacity);

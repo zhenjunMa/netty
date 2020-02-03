@@ -28,7 +28,13 @@ import java.util.Deque;
  * > chunk - a chunk is a collection of pages
  * > in this code chunkSize = 2^{maxOrder} * pageSize
  *
+ * 1. page: page是可被分配的最小的内存单元。
+ * 2. chunk: 一系列page的集合。
+ * 3. chunkSize = 2^{maxOrder} * pageSize，maxOrder是平衡二叉树的(height - 1)
+ *
  * To begin we allocate a byte array of size = chunkSize
+ * 初始化时会分配一个大小为chunkSize的byte数组。
+ *
  * Whenever a ByteBuf of given size needs to be created we search for the first position
  * in the byte array that has enough empty space to accommodate the requested size and
  * return a (long) handle that encodes this offset information, (this memory segment is then
@@ -40,6 +46,8 @@ import java.util.Deque;
  *
  * To search for the first offset in chunk that has at least requested size available we construct a
  * complete balanced binary tree and store it in an array (just like heaps) - memoryMap
+ *
+ * 为查找第一个满足size的可用内存内存的offset，我们使用变量memoryMap，它是一个保存在数组中的平衡二叉树（类似堆）
  *
  * The tree looks like this (the size of each node being mentioned in the parenthesis)
  *
@@ -64,6 +72,8 @@ import java.util.Deque;
  *   is at depth x (counted from depth=0) i.e., at depths [depth_of_id, x), there is no node that is free
  *
  *  As we allocate & free nodes, we update values stored in memoryMap so that the property is maintained
+ *
+ * 上面的id会在二叉树初始化时分配，从上到下从左到右，从1开始，依次进行分配。
  *
  * Initialization -
  *   In the beginning we construct the memoryMap array by storing the depth of a node at each node
@@ -94,6 +104,8 @@ import java.util.Deque;
  * 1) use allocateNode(maxOrder) to find an empty (i.e., unused) leaf (i.e., page)
  * 2) use this handle to construct the PoolSubpage object or if it already exists just call init(normCapacity)
  *    note that this PoolSubpage object is added to subpagesPool in the PoolArena when we init() it
+ *
+ * allocateSubpage()分配比page更小的内存页，直接由叶子节点从左往右找一个还没有使用的leaf，然后创建一个PoolSubpage对象进行管理
  *
  * Note:
  * -----
@@ -145,9 +157,12 @@ final class PoolChunk<T> implements PoolChunkMetric {
         unpooled = false;
         this.arena = arena;
         this.memory = memory;
+        //默认是8k
         this.pageSize = pageSize;
         this.pageShifts = pageShifts;
+        //默认是11
         this.maxOrder = maxOrder;
+        //pageSize * 2^maxOrder
         this.chunkSize = chunkSize;
         this.offset = offset;
         unusable = (byte) (maxOrder + 1);
@@ -156,9 +171,11 @@ final class PoolChunk<T> implements PoolChunkMetric {
         freeBytes = chunkSize;
 
         assert maxOrder < 30 : "maxOrder should be < 30, but is: " + maxOrder;
+        //叶子节点的数量
         maxSubpageAllocs = 1 << maxOrder;
 
         // Generate the memory map.
+        // 所有节点的数量
         memoryMap = new byte[maxSubpageAllocs << 1];
         depthMap = new byte[memoryMap.length];
         int memoryMapIndex = 1;
@@ -172,6 +189,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
             }
         }
 
+        //每个叶子节点都对应一个PoolSubpage
         subpages = newSubpageArray(maxSubpageAllocs);
         cachedNioBuffers = new ArrayDeque<ByteBuffer>(8);
     }
@@ -222,6 +240,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
         return 100 - freePercentage;
     }
 
+    //reqCapacity：真实需要的  normCapacity：修订过的，2^n
     boolean allocate(PooledByteBuf<T> buf, int reqCapacity, int normCapacity) {
         final long handle;
         if ((normCapacity & subpageOverflowMask) != 0) { // >= pageSize
@@ -294,10 +313,12 @@ final class PoolChunk<T> implements PoolChunkMetric {
         int id = 1;
         int initial = - (1 << d); // has last d bits = 0 and rest all = 1
         byte val = value(id);
+        //id = 1的root节点可分配的最大层，如果大于d，则说明d层无可用节点，直接返回。
         if (val > d) { // unusable
             return -1;
         }
         while (val < d || (id & initial) == 0) { // id & initial == 1 << d for all ids at depth d, for < d it is 0
+            //直接下跳到下一层的第一个节点id
             id <<= 1;
             val = value(id);
             if (val > d) {
@@ -320,11 +341,14 @@ final class PoolChunk<T> implements PoolChunkMetric {
      * @return index in memoryMap
      */
     private long allocateRun(int normCapacity) {
+        //d是确定在二叉树的哪一层开始寻找可用节点
         int d = maxOrder - (log2(normCapacity) - pageShifts);
         int id = allocateNode(d);
+        //小于0表示没有可用节点
         if (id < 0) {
             return id;
         }
+        //统计
         freeBytes -= runLength(id);
         return id;
     }
@@ -342,7 +366,9 @@ final class PoolChunk<T> implements PoolChunkMetric {
         PoolSubpage<T> head = arena.findSubpagePoolHead(normCapacity);
         int d = maxOrder; // subpages are only be allocated from pages i.e., leaves
         synchronized (head) {
+            //找一个可用的叶子节点，这样会不会是每次都分配一个叶子节点，怎么起到分配更小内存的做法？
             int id = allocateNode(d);
+            //没有满足条件的内存可用
             if (id < 0) {
                 return id;
             }
@@ -350,6 +376,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
             final PoolSubpage<T>[] subpages = this.subpages;
             final int pageSize = this.pageSize;
 
+            //仍旧是减去一个完整的叶子节点大小
             freeBytes -= pageSize;
 
             int subpageIdx = subpageIdx(id);

@@ -30,11 +30,23 @@ public abstract class ObjectPool<T> {
      * Get a {@link Object} from the {@link ObjectPool}. The returned {@link Object} may be created via
      * {@link ObjectCreator#newObject(Handle)} if no pooled {@link Object} is ready to be reused.
      */
+
+    /**
+     * 从对象池里获取一个对象，如果没有可用对象，则会返回一个newObject(Handle)方法创建的对象
+     *
+     * @return
+     */
     public abstract T get();
 
     /**
      * Handle for an pooled {@link Object} that will be used to notify the {@link ObjectPool} once it can
      * reuse the pooled {@link Object} again.
+     * @param <T>
+     */
+
+    /**
+     * 用来回收分配出去的对象，标志该对象可重新被使用。
+     *
      * @param <T>
      */
     public interface Handle<T> {

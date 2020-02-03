@@ -70,9 +70,7 @@ public abstract class Recycler<T> {
 
         DEFAULT_MAX_CAPACITY_PER_THREAD = maxCapacityPerThread;
 
-        MAX_SHARED_CAPACITY_FACTOR = max(2,
-                SystemPropertyUtil.getInt("io.netty.recycler.maxSharedCapacityFactor",
-                        2));
+        MAX_SHARED_CAPACITY_FACTOR = max(2, SystemPropertyUtil.getInt("io.netty.recycler.maxSharedCapacityFactor", 2));
 
         MAX_DELAYED_QUEUES_PER_THREAD = max(0,
                 SystemPropertyUtil.getInt("io.netty.recycler.maxDelayedQueuesPerThread",

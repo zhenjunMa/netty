@@ -38,6 +38,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
         Normal
     }
 
+    // 2 ^ 9 / 2 ^ 4 = 2 ^ 5 = 32
     static final int numTinySubpagePools = 512 >>> 4;
 
     final PooledByteBufAllocator parent;
@@ -78,6 +79,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
     private final LongCounter deallocationsHuge = PlatformDependent.newLongCounter();
 
     // Number of thread caches backed by this arena.
+    // 使用当前arena的线程数
     final AtomicInteger numThreadCaches = new AtomicInteger();
 
     // TODO: Test if adding padding helps under contention
@@ -104,11 +106,22 @@ abstract class PoolArena<T> implements PoolArenaMetric {
             smallSubpagePools[i] = newSubpagePoolHead(pageSize);
         }
 
+        /*
+         * qInit ->
+         * null <- q000 <-> q025 <-> q050 <-> q075 <-> q100
+         *
+         */
+        //使用率 100 ~ Integer.MAX_VALUE
         q100 = new PoolChunkList<T>(this, null, 100, Integer.MAX_VALUE, chunkSize);
+        //使用率 75 ~ 100
         q075 = new PoolChunkList<T>(this, q100, 75, 100, chunkSize);
+        //使用率 50 ~ 100
         q050 = new PoolChunkList<T>(this, q075, 50, 100, chunkSize);
+        //使用率 25 ~ 75
         q025 = new PoolChunkList<T>(this, q050, 25, 75, chunkSize);
+        //使用率 1 ~ 50
         q000 = new PoolChunkList<T>(this, q025, 1, 50, chunkSize);
+        //使用率Integer.MIN_VALUE ~ 25
         qInit = new PoolChunkList<T>(this, q000, Integer.MIN_VALUE, 25, chunkSize);
 
         q100.prevList(q075);
@@ -143,6 +156,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
     abstract boolean isDirect();
 
     PooledByteBuf<T> allocate(PoolThreadCache cache, int reqCapacity, int maxCapacity) {
+        //这里分配的这个buf还没有对应任何实际的内存区域，只是从对象池里面拿了一个出来
         PooledByteBuf<T> buf = newByteBuf(maxCapacity);
         allocate(cache, buf, reqCapacity);
         return buf;
@@ -173,7 +187,9 @@ abstract class PoolArena<T> implements PoolArenaMetric {
     }
 
     private void allocate(PoolThreadCache cache, PooledByteBuf<T> buf, final int reqCapacity) {
+        //修改申请的内存为2的整数次方
         final int normCapacity = normalizeCapacity(reqCapacity);
+        // pageSize默认为8K， 申请内存数小于8K的处理方式
         if (isTinyOrSmall(normCapacity)) { // capacity < pageSize
             int tableIdx;
             PoolSubpage<T>[] table;
@@ -218,16 +234,19 @@ abstract class PoolArena<T> implements PoolArenaMetric {
             incTinySmallAllocation(tiny);
             return;
         }
+        //申请内存大于8K，但小于一个chunk的处理
         if (normCapacity <= chunkSize) {
             if (cache.allocateNormal(this, buf, reqCapacity, normCapacity)) {
                 // was able to allocate out of the cache so move on
                 return;
             }
+            //第一次分配的时候，上面会失败
             synchronized (this) {
                 allocateNormal(buf, reqCapacity, normCapacity);
                 ++allocationsNormal;
             }
         } else {
+            //申请内存大于一个chunk的处理
             // Huge allocations are never served via the cache so just call allocateHuge
             allocateHuge(buf, reqCapacity);
         }
@@ -235,6 +254,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
 
     // Method must be called inside synchronized(this) { ... } block
     private void allocateNormal(PooledByteBuf<T> buf, int reqCapacity, int normCapacity) {
+        //按照使用率大于50, 25, 1, Integer.MIN_VALUE以及75的顺序分配内存
         if (q050.allocate(buf, reqCapacity, normCapacity) || q025.allocate(buf, reqCapacity, normCapacity) ||
             q000.allocate(buf, reqCapacity, normCapacity) || qInit.allocate(buf, reqCapacity, normCapacity) ||
             q075.allocate(buf, reqCapacity, normCapacity)) {
@@ -245,6 +265,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
         PoolChunk<T> c = newChunk(pageSize, maxOrder, pageShifts, chunkSize);
         boolean success = c.allocate(buf, reqCapacity, normCapacity);
         assert success;
+        //新的chunk首先加入到qInit
         qInit.add(c);
     }
 
@@ -264,6 +285,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
     }
 
     void free(PoolChunk<T> chunk, ByteBuffer nioBuffer, long handle, int normCapacity, PoolThreadCache cache) {
+        //大于chunk的内存不归内存池管理，直接销毁
         if (chunk.unpooled) {
             int size = chunk.chunkSize();
             destroyChunk(chunk);
@@ -744,6 +766,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
         @Override
         protected PoolChunk<ByteBuffer> newUnpooledChunk(int capacity) {
             if (directMemoryCacheAlignment == 0) {
+                //分配capacity的内存，但这个内存应该不是池化管理？
                 return new PoolChunk<ByteBuffer>(this,
                         allocateDirect(capacity), capacity, 0);
             }

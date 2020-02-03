@@ -97,6 +97,7 @@ final class PoolChunkList<T> implements PoolChunkListMetric {
 
     boolean free(PoolChunk<T> chunk, long handle, ByteBuffer nioBuffer) {
         chunk.free(handle, nioBuffer);
+        //使用率小于minUsage时会删除chunk对象，但是InitChunkList的minUsage为Integer.MIN_VALUE，也就是说这里的chunk对象不会回收
         if (chunk.usage() < minUsage) {
             remove(chunk);
             // Move the PoolChunk down the PoolChunkList linked-list.
@@ -153,6 +154,7 @@ final class PoolChunkList<T> implements PoolChunkListMetric {
             chunk.prev = null;
             chunk.next = head;
             head.prev = chunk;
+            //插入头部
             head = chunk;
         }
     }

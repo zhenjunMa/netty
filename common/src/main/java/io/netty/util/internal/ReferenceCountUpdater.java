@@ -38,6 +38,15 @@ public abstract class ReferenceCountUpdater<T extends ReferenceCounted> {
      * for example: if (rawCnt == 2 || rawCnt == 4 || (rawCnt & 1) == 0) { ...
      */
 
+    /*
+     * 实现说明：
+     *
+     * 对于可变的int成员变量(refCnt)来说：
+     * 1. 如果是偶数，那么真正的引用数为(refCnt>>>1)
+     * 2. 如果是奇数，那么真正的引用数为0
+     *
+     */
+
     protected ReferenceCountUpdater() { }
 
     public static long getUnsafeOffset(Class<? extends ReferenceCounted> clz, String fieldName) {
@@ -55,11 +64,13 @@ public abstract class ReferenceCountUpdater<T extends ReferenceCounted> {
 
     protected abstract long unsafeOffset();
 
+    //根据上面结束，偶数的真正引用数为 2 >>> 1 = 1
     public final int initialValue() {
         return 2;
     }
 
     private static int realRefCnt(int rawCnt) {
+        //这里单独把2、4拎出来判断是为了避免位运算带来的额外开销
         return rawCnt != 2 && rawCnt != 4 && (rawCnt & 1) != 0 ? 0 : rawCnt >>> 1;
     }
 
@@ -134,6 +145,7 @@ public abstract class ReferenceCountUpdater<T extends ReferenceCounted> {
 
     public final boolean release(T instance) {
         int rawCnt = nonVolatileRawCnt(instance);
+        //rawCnt == 2说明只有1个引用，也就是说release()执行完以后引用数就变为0，需要执行回收操作
         return rawCnt == 2 ? tryFinalRelease0(instance, 2) || retryRelease0(instance, 1)
                 : nonFinalRelease0(instance, 1, rawCnt, toLiveRealRefCnt(rawCnt, 1));
     }
