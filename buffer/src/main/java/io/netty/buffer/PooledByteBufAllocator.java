@@ -342,9 +342,19 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
 
     @Override
     //这里是在netty中分配内存的最终入口
-    //内存分配的流程是：PooledByteBufAllocator -> PoolThreadCache -> PoolArena(DirectArena) -> MemoryRegionCache -> PoolChunk
+    /*
+     * 内存分配的流程是：
+     * 入口：PooledByteBufAllocator
+     * 首先判断是否有缓存：PoolThreadCache，有则直接分配。
+     * 如果没有缓存则使用：PoolArena(DirectArena)
+     * arena管理PoolChunk
+     * PoolChunk归还以后缓存在PoolThreadCache中。
+     *
+     * 吐槽：内存管理这块代码很乱，对象直接互相引用
+     *
+     */
     protected ByteBuf newDirectBuffer(int initialCapacity, int maxCapacity) {
-        //ThreadLocal
+        //ThreadLocal，所以每个线程有一个自己的cache
         PoolThreadCache cache = threadCache.get();
         //通过directArena来达到分段锁的目的，减小冲突
         PoolArena<ByteBuffer> directArena = cache.directArena;

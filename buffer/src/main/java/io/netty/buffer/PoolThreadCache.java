@@ -189,6 +189,7 @@ final class PoolThreadCache {
             // no cache found so just return false here
             return false;
         }
+        //cache是每个线程私有的，优先在cache里面进行分配
         boolean allocated = cache.allocate(buf, reqCapacity);
         if (++ allocations >= freeSweepAllocationThreshold) {
             allocations = 0;
@@ -325,6 +326,7 @@ final class PoolThreadCache {
 
     private MemoryRegionCache<?> cacheForNormal(PoolArena<?> area, int normCapacity) {
         if (area.isDirect()) {
+            //numShiftsNormalDirect是pageSize对应的位数
             int idx = log2(normCapacity >> numShiftsNormalDirect);
             return cache(normalDirectCaches, idx);
         }

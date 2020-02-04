@@ -156,8 +156,9 @@ abstract class PoolArena<T> implements PoolArenaMetric {
     abstract boolean isDirect();
 
     PooledByteBuf<T> allocate(PoolThreadCache cache, int reqCapacity, int maxCapacity) {
-        //这里分配的这个buf还没有对应任何实际的内存区域，只是从对象池里面拿了一个出来
+        //这里分配的这个buf还没有对应任何实际的内存区域，只是从对象池里面拿了一个PooledByteBuf对象出来
         PooledByteBuf<T> buf = newByteBuf(maxCapacity);
+        //真正的内存分配
         allocate(cache, buf, reqCapacity);
         return buf;
     }
@@ -227,6 +228,8 @@ abstract class PoolArena<T> implements PoolArenaMetric {
                     return;
                 }
             }
+
+            //什么时候会退化成Normal?
             synchronized (this) {
                 allocateNormal(buf, reqCapacity, normCapacity);
             }
@@ -236,11 +239,13 @@ abstract class PoolArena<T> implements PoolArenaMetric {
         }
         //申请内存大于8K，但小于一个chunk的处理
         if (normCapacity <= chunkSize) {
+            //PoolThreadCache是线程私有的，因此不用加锁，优先使用cache分配
             if (cache.allocateNormal(this, buf, reqCapacity, normCapacity)) {
                 // was able to allocate out of the cache so move on
                 return;
             }
-            //第一次分配的时候，上面会失败
+            //第一次分配的时候cache里面没有数据，上面会失败
+            //这里是在arena里面分配，而arena是多线程共享，因此需要佳作
             synchronized (this) {
                 allocateNormal(buf, reqCapacity, normCapacity);
                 ++allocationsNormal;

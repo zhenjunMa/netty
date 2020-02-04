@@ -18,6 +18,7 @@ package io.netty.buffer;
 
 final class PoolSubpage<T> implements PoolSubpageMetric {
 
+    //属于哪个chunk
     final PoolChunk<T> chunk;
     private final int memoryMapIdx;
     private final int runOffset;
@@ -30,6 +31,7 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
 
     boolean doNotDestroy;
     //分割后的片段size
+    //这里只有一个元素，也就是说一个Page只能被划分成相同大小的子页？
     int elemSize;
     private int maxNumElems;
     private int bitmapLength;
