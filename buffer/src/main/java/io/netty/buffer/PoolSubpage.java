@@ -64,6 +64,7 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
         doNotDestroy = true;
         this.elemSize = elemSize;
         if (elemSize != 0) {
+            //把page按照elemSize进行等分，这里可以看出一个page只能按照某个特定的值进行等分
             maxNumElems = numAvail = pageSize / elemSize;
             nextAvail = 0;
             bitmapLength = maxNumElems >>> 6;
@@ -71,6 +72,7 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
                 bitmapLength ++;
             }
 
+            //初始化时每个子段都没有被分配出去
             for (int i = 0; i < bitmapLength; i ++) {
                 bitmap[i] = 0;
             }
@@ -92,10 +94,11 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
 
         final int bitmapIdx = getNextAvail();
         int q = bitmapIdx >>> 6;
-        int r = bitmapIdx & 63;
+        int r = bitmapIdx & 63;//64 - 1
         assert (bitmap[q] >>> r & 1) == 0;
         bitmap[q] |= 1L << r;
 
+        //没有可用，即如果都分配出去，则从剔除
         if (-- numAvail == 0) {
             removeFromPool();
         }
@@ -119,6 +122,7 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
         setNextAvail(bitmapIdx);
 
         if (numAvail ++ == 0) {
+            //该elemSize没有可用的head，则加入
             addToPool(head);
             return true;
         }
@@ -134,6 +138,7 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
 
             // Remove this subpage from the pool if there are other subpages left in the pool.
             doNotDestroy = false;
+            //否则的话删除
             removeFromPool();
             return false;
         }

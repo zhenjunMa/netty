@@ -96,9 +96,11 @@ final class PoolChunkList<T> implements PoolChunkListMetric {
     }
 
     boolean free(PoolChunk<T> chunk, long handle, ByteBuffer nioBuffer) {
+        //更新chunk的二叉树
         chunk.free(handle, nioBuffer);
         //使用率小于minUsage时会删除chunk对象，但是InitChunkList的minUsage为Integer.MIN_VALUE，也就是说这里的chunk对象不会回收
         if (chunk.usage() < minUsage) {
+            //在chunkList之间做迁移
             remove(chunk);
             // Move the PoolChunk down the PoolChunkList linked-list.
             return move0(chunk);
@@ -124,6 +126,8 @@ final class PoolChunkList<T> implements PoolChunkListMetric {
      * {@link PoolChunkList} that has the correct minUsage / maxUsage in respect to {@link PoolChunk#usage()}.
      */
     private boolean move0(PoolChunk<T> chunk) {
+        //prevList为null的只有PoolArena中的q000
+        //这里也就是说q000里面的chunk会被回收，但qInit里面的内存即使内存使用率很低也不会被彻底回收
         if (prevList == null) {
             // There is no previous PoolChunkList so return false which result in having the PoolChunk destroyed and
             // all memory associated with the PoolChunk will be released.

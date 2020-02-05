@@ -156,6 +156,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
     PoolChunk(PoolArena<T> arena, T memory, int pageSize, int maxOrder, int pageShifts, int chunkSize, int offset) {
         unpooled = false;
         this.arena = arena;
+        //这个是实际申请下来的ByteBuffer
         this.memory = memory;
         //默认是8k
         this.pageSize = pageSize;
@@ -246,6 +247,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
         if ((normCapacity & subpageOverflowMask) != 0) { // >= pageSize
             handle =  allocateRun(normCapacity);
         } else {
+            //分配比pageSize小的内存段
             handle = allocateSubpage(normCapacity);
         }
 
@@ -364,9 +366,10 @@ final class PoolChunk<T> implements PoolChunkMetric {
         // Obtain the head of the PoolSubPage pool that is owned by the PoolArena and synchronize on it.
         // This is need as we may add it back and so alter the linked-list structure.
         PoolSubpage<T> head = arena.findSubpagePoolHead(normCapacity);
+        //小内存直接找可用的叶子节点即可
         int d = maxOrder; // subpages are only be allocated from pages i.e., leaves
         synchronized (head) {
-            //找一个可用的叶子节点，这样会不会是每次都分配一个叶子节点，怎么起到分配更小内存的做法？
+            //找一个可用的叶子节点，叶子节点是最小的分配单元
             int id = allocateNode(d);
             //没有满足条件的内存可用
             if (id < 0) {

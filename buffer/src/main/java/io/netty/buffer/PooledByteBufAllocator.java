@@ -353,6 +353,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
      * 吐槽：内存管理这块代码很乱，对象直接互相引用
      *
      */
+    //maxCapacity：默认是Integer.MAX_VALUE，这个是用于扩容的时候进行判断，不是一开始就要申请这么多内存
     protected ByteBuf newDirectBuffer(int initialCapacity, int maxCapacity) {
         //ThreadLocal，所以每个线程有一个自己的cache
         PoolThreadCache cache = threadCache.get();

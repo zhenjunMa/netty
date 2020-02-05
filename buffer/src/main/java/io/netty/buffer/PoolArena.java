@@ -219,6 +219,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
              */
             synchronized (head) {
                 final PoolSubpage<T> s = head.next;
+                //第一次进来的时候head.next = head
                 if (s != head) {
                     assert s.doNotDestroy && s.elemSize == normCapacity;
                     long handle = s.allocate();
@@ -229,7 +230,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
                 }
             }
 
-            //什么时候会退化成Normal?
+            //缓存没有命中，PoolSubpage也没有的时候会走到这里
             synchronized (this) {
                 allocateNormal(buf, reqCapacity, normCapacity);
             }
@@ -298,11 +299,13 @@ abstract class PoolArena<T> implements PoolArenaMetric {
             deallocationsHuge.increment();
         } else {
             SizeClass sizeClass = sizeClass(normCapacity);
+            //优先放在缓存中使用，缓存是属于某个线程的，可以避免锁竞争，但缓存有存放元素的上限，满了就不再缓存
             if (cache != null && cache.add(this, chunk, nioBuffer, handle, normCapacity, sizeClass)) {
                 // cached so not free it.
                 return;
             }
 
+            //当无法加入缓存时进入
             freeChunk(chunk, handle, sizeClass, nioBuffer, false);
         }
     }
@@ -334,10 +337,13 @@ abstract class PoolArena<T> implements PoolArenaMetric {
                         throw new Error();
                 }
             }
+
+            //释放chunk的时候，优先调整各个不同使用率的chunkList，如果使用率小于q000，则destroyChunk为true，意味着会彻底回收这段内存
             destroyChunk = !chunk.parent.free(chunk, handle, nioBuffer);
         }
         if (destroyChunk) {
             // destroyChunk not need to be called while holding the synchronized lock.
+            //彻底回收内存
             destroyChunk(chunk);
         }
     }

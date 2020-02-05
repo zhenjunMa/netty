@@ -61,7 +61,9 @@ abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
         assert chunk != null;
 
         this.chunk = chunk;
+        //这个是ByteBuffer
         memory = chunk.memory;
+        //这个是从cache里面来的，第一次进来为null，后面可能是缓存的ByteBuffer
         tmpNioBuf = nioBuffer;
         allocator = chunk.arena.parent;
         this.cache = cache;
@@ -156,6 +158,7 @@ abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
         if (tmpNioBuf == null) {
             this.tmpNioBuf = tmpNioBuf = newInternalNioBuffer(memory);
         } else {
+            //这里为什么是清空？
             tmpNioBuf.clear();
         }
         return tmpNioBuf;
@@ -164,6 +167,7 @@ abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
     protected abstract ByteBuffer newInternalNioBuffer(T memory);
 
     @Override
+    //池化内存的释放
     protected final void deallocate() {
         //release导致refCnt为0是触发到这里
         if (handle >= 0) {
