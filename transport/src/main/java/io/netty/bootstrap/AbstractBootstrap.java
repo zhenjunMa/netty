@@ -99,6 +99,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
      * You either use this or {@link #channelFactory(io.netty.channel.ChannelFactory)} if your
      * {@link Channel} implementation has no no-args constructor.
      */
+    //设置serverChannel的类型，反射工厂其实就是调用serverChannel的构造函数创建一个对象
     public B channel(Class<? extends C> channelClass) {
         return channelFactory(new ReflectiveChannelFactory<C>(
                 ObjectUtil.checkNotNull(channelClass, "channelClass")
@@ -261,6 +262,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     }
 
     private ChannelFuture doBind(final SocketAddress localAddress) {
+        //这里做了两件事：1.初始化ServerChannel（包括pipeline），2.把ServerChannel注册到EventLoop
         final ChannelFuture regFuture = initAndRegister();
         //这里的这个channel是XXXServerSocketChannel
         final Channel channel = regFuture.channel();
@@ -271,6 +273,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         if (regFuture.isDone()) {
             // At this point we know that the registration was complete and successful.
             ChannelPromise promise = channel.newPromise();
+            //这里开始bind端口
             doBind0(regFuture, channel, localAddress, promise);
             return promise;
         } else {
@@ -302,6 +305,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         try {
             //创建不同类型的ServerChannel
             channel = channelFactory.newChannel();
+            //构建pipeline, option, attr
             init(channel);
         } catch (Throwable t) {
             if (channel != null) {
@@ -314,7 +318,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
             return new DefaultChannelPromise(new FailedChannel(), GlobalEventExecutor.INSTANCE).setFailure(t);
         }
 
-        //给新创建的连接分配一个EventLoop
+        //给新创建的连接分配一个EventLoop，这里是给ServerChannel分配boss eventLoop
         ChannelFuture regFuture = config().group().register(channel);
         if (regFuture.cause() != null) {
             if (channel.isRegistered()) {
@@ -359,6 +363,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     /**
      * the {@link ChannelHandler} to use for serving the requests.
      */
+    //serverChannel处理链
     public B handler(ChannelHandler handler) {
         this.handler = ObjectUtil.checkNotNull(handler, "handler");
         return self();

@@ -70,8 +70,11 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
      */
     protected AbstractChannel(Channel parent) {
         this.parent = parent;
+        //每个channel对应一个唯一ID
         id = newId();
+        //unsafe是netty对底层java NIO或者native epoll的统一封装
         unsafe = newUnsafe();
+        //构建pipeline
         pipeline = newChannelPipeline();
     }
 
@@ -452,18 +455,22 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
         @Override
         public final void register(EventLoop eventLoop, final ChannelPromise promise) {
             ObjectUtil.checkNotNull(eventLoop, "eventLoop");
+
+            //重复注册
             if (isRegistered()) {
                 promise.setFailure(new IllegalStateException("registered to an event loop already"));
                 return;
             }
+
+            //判断channel类型跟eventLoop类型是否一致，如nio channel必须对应nio eventLoop
             if (!isCompatible(eventLoop)) {
-                promise.setFailure(
-                        new IllegalStateException("incompatible event loop type: " + eventLoop.getClass().getName()));
+                promise.setFailure(new IllegalStateException("incompatible event loop type: " + eventLoop.getClass().getName()));
                 return;
             }
 
             AbstractChannel.this.eventLoop = eventLoop;
 
+            //如果当前执行上下文的线程是eventLoop则直接执行，否则交给eventLoop异步执行，也就是说这部分逻辑不让外部线程执行
             if (eventLoop.inEventLoop()) {
                 register0(promise);
             } else {
@@ -499,20 +506,24 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 
                 // Ensure we call handlerAdded(...) before we actually notify the promise. This is needed as the
                 // user may already fire events through the pipeline in the ChannelFutureListener.
+                //channel注册到eventLoop以后才会统一执行handlerAdd方法
                 pipeline.invokeHandlerAddedIfNeeded();
 
                 safeSetSuccess(promise);
+                //激活registered方法
                 pipeline.fireChannelRegistered();
                 // Only fire a channelActive if the channel has never been registered. This prevents firing
                 // multiple channel actives if the channel is deregistered and re-registered.
                 if (isActive()) {
                     if (firstRegistration) {
+                        //如果是第一次注册则激活channelActive方法
                         pipeline.fireChannelActive();
                     } else if (config().isAutoRead()) {
                         // This channel was registered before and autoRead() is set. This means we need to begin read
                         // again so that we process inbound data.
                         //
                         // See https://github.com/netty/netty/issues/4805
+                        //重复注册且开启autoRead，直接开始感兴趣注册读事件
                         beginRead();
                     }
                 }

@@ -94,7 +94,10 @@ public class DefaultChannelPipeline implements ChannelPipeline {
         succeededFuture = new SucceededChannelFuture(channel, null);
         voidPromise =  new VoidChannelPromise(channel, true);
 
+        //pipeline中最少有下面两个handler
+        //Inbound Handler
         tail = new TailContext(this);
+        //Inbound/Outbound Handler
         head = new HeadContext(this);
 
         head.next = tail;
@@ -199,27 +202,34 @@ public class DefaultChannelPipeline implements ChannelPipeline {
     public final ChannelPipeline addLast(EventExecutorGroup group, String name, ChannelHandler handler) {
         final AbstractChannelHandlerContext newCtx;
         synchronized (this) {
+            //判断该handler是否被添加过或者允许Share
             checkMultiplicity(handler);
 
             newCtx = newContext(group, filterName(name, handler), handler);
 
+            //pipelie中存放是handlerContext，handlerContext中存放的才是handler
             addLast0(newCtx);
 
             // If the registered is false it means that the channel was not registered on an eventLoop yet.
             // In this case we add the context to the pipeline and add a task that will call
             // ChannelHandler.handlerAdded(...) once the channel is registered.
+            //registered表示该channel是否注册到EventLoop
             if (!registered) {
                 newCtx.setAddPending();
+                //把回调该handler的handlerAdd方法的任务加入到任务队列
                 callHandlerCallbackLater(newCtx, true);
                 return this;
             }
 
+            //如果已经注册过，说明是在运行中添加handler
             EventExecutor executor = newCtx.executor();
             if (!executor.inEventLoop()) {
+                //如果当前线程不是event loop，则让指定的executor异步执行
                 callHandlerAddedInEventLoop(newCtx, executor);
                 return this;
             }
         }
+        //回调handlerAdd方法
         callHandlerAdded0(newCtx);
         return this;
     }
