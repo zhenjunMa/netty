@@ -382,6 +382,7 @@ public class NioSocketChannel extends AbstractNioByteChannel implements io.netty
         do {
             if (in.isEmpty()) {
                 // All written so clear OP_WRITE
+                //没有数据，取消SelectionKey.OP_WRITE事件
                 clearOpWrite();
                 // Directly return here so incompleteWrite(...) is not called.
                 return;

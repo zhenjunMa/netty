@@ -262,7 +262,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     }
 
     private ChannelFuture doBind(final SocketAddress localAddress) {
-        //这里做了两件事：1.初始化ServerChannel（包括pipeline），2.把ServerChannel注册到EventLoop
+        //这里做了两件事：1.初始化ServerChannel（包括pipeline），2.把ServerChannel注册到EventLoop，开启select
         final ChannelFuture regFuture = initAndRegister();
         //这里的这个channel是XXXServerSocketChannel
         final Channel channel = regFuture.channel();

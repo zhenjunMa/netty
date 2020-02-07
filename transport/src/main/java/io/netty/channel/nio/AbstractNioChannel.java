@@ -436,10 +436,12 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         final int readableBytes = buf.readableBytes();
         if (readableBytes == 0) {
             ReferenceCountUtil.safeRelease(buf);
+            //这里返回的还是有可能是heapBuffer
             return Unpooled.EMPTY_BUFFER;
         }
 
         final ByteBufAllocator alloc = alloc();
+        //整体池化
         if (alloc.isDirectBufferPooled()) {
             ByteBuf directBuf = alloc.directBuffer(readableBytes);
             directBuf.writeBytes(buf, buf.readerIndex(), readableBytes);
@@ -447,6 +449,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
             return directBuf;
         }
 
+        //该线程内部池化
         final ByteBuf directBuf = ByteBufUtil.threadLocalDirectBuffer();
         if (directBuf != null) {
             directBuf.writeBytes(buf, buf.readerIndex(), readableBytes);

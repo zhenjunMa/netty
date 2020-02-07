@@ -203,6 +203,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         @Override
         @SuppressWarnings("unchecked")
         public void channelRead(ChannelHandlerContext ctx, Object msg) {
+            //对于ServerSocket来说，Read就是accept一个连接
             final Channel child = (Channel) msg;
 
             child.pipeline().addLast(childHandler);

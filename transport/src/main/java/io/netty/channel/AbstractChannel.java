@@ -468,6 +468,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 return;
             }
 
+            //注册的第一个意思：给channel分配一个eventLoop
             AbstractChannel.this.eventLoop = eventLoop;
 
             //如果当前执行上下文的线程是eventLoop则直接执行，否则交给eventLoop异步执行，也就是说这部分逻辑不让外部线程执行
@@ -500,6 +501,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                     return;
                 }
                 boolean firstRegistration = neverRegistered;
+                //注册的第二个意思，在selector上注册，但这里还没有注册感兴趣的事件
                 doRegister();
                 neverRegistered = false;
                 registered = true;
@@ -558,6 +560,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 
             boolean wasActive = isActive();
             try {
+                //绑定端口
                 doBind(localAddress);
             } catch (Throwable t) {
                 safeSetFailure(promise, t);
@@ -851,6 +854,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             }
 
             try {
+                //真正注册感兴趣的事件
                 doBeginRead();
             } catch (final Exception e) {
                 invokeLater(new Runnable() {
@@ -881,6 +885,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 
             int size;
             try {
+                //只保留合法的消息类型，如ByteBuf
                 msg = filterOutboundMessage(msg);
                 size = pipeline.estimatorHandle().size(msg);
                 if (size < 0) {
@@ -923,8 +928,10 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             inFlush0 = true;
 
             // Mark all pending write requests as failure if the channel is inactive.
+            //isActive = ch.isOpen() && ch.isConnected()
             if (!isActive()) {
                 try {
+                    //isOpen = ch.isOpen()
                     if (isOpen()) {
                         outboundBuffer.failFlushed(new NotYetConnectedException(), true);
                     } else {

@@ -131,6 +131,7 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
             Object msg = in.current();
             if (msg == null) {
                 // Wrote all messages.
+                //没有消息可写时会注销OP_WRITE事件
                 if ((interestOps & SelectionKey.OP_WRITE) != 0) {
                     key.interestOps(interestOps & ~SelectionKey.OP_WRITE);
                 }

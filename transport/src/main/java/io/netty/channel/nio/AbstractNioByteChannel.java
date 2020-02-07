@@ -212,6 +212,7 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
     private int doWriteInternal(ChannelOutboundBuffer in, Object msg) throws Exception {
         if (msg instanceof ByteBuf) {
             ByteBuf buf = (ByteBuf) msg;
+            //这里仍旧会判断是否有数据，结合filterOutMessage看
             if (!buf.isReadable()) {
                 in.remove();
                 return 0;

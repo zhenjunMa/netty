@@ -942,8 +942,7 @@ public abstract class AbstractByteBuf extends ByteBuf {
     }
 
     @Override
-    public int readBytes(GatheringByteChannel out, int length)
-            throws IOException {
+    public int readBytes(GatheringByteChannel out, int length) throws IOException {
         checkReadableBytes(length);
         int readBytes = getBytes(readerIndex, out, length);
         readerIndex += readBytes;

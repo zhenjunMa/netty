@@ -846,6 +846,7 @@ public final class ByteBufUtil {
      * @return a cached thread-local direct buffer, if available.  {@code null} otherwise.
      */
     public static ByteBuf threadLocalDirectBuffer() {
+        //这个值默认为0
         if (THREAD_LOCAL_BUFFER_SIZE <= 0) {
             return null;
         }
