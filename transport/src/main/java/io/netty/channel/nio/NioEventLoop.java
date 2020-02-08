@@ -438,6 +438,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             try {
                 int strategy;
                 try {
+                    //hasTasks()为true,直接调用selectNowSupplier，为false，返回SelectStrategy.SELECT
                     strategy = selectStrategy.calculateStrategy(selectNowSupplier, hasTasks());
                     switch (strategy) {
                     case SelectStrategy.CONTINUE:
@@ -478,13 +479,17 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                 needsToSelectAgain = false;
                 final int ioRatio = this.ioRatio;
                 boolean ranTasks;
+                //ioRatio值越小表示花费在非IO的任务上的时间越多
                 if (ioRatio == 100) {
                     try {
+                        //strategy>0表示有待处理的IO任务，优先处理
                         if (strategy > 0) {
+                            //处理IO任务
                             processSelectedKeys();
                         }
                     } finally {
                         // Ensure we always run tasks.
+                        //当ioRatio为100时，这里会阻塞住一口气把所有的任务都执行完
                         ranTasks = runAllTasks();
                     }
                 } else if (strategy > 0) {
@@ -493,10 +498,13 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                         processSelectedKeys();
                     } finally {
                         // Ensure we always run tasks.
+                        //ioTime是本次执行IO所用的时间
                         final long ioTime = System.nanoTime() - ioStartTime;
+                        //根据ioTime跟ioRate计算中本次执行异步任务可用的总耗时
                         ranTasks = runAllTasks(ioTime * (100 - ioRatio) / ioRatio);
                     }
                 } else {
+                    //如果ioRatio不为0且没有待处理的IO任务
                     ranTasks = runAllTasks(0); // This will run the minimum number of tasks
                 }
 
