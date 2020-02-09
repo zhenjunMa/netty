@@ -719,6 +719,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 
             final boolean wasActive = isActive();
             final ChannelOutboundBuffer outboundBuffer = this.outboundBuffer;
+            //不再添加任何数据
             this.outboundBuffer = null; // Disallow adding any messages and flushes to outboundBuffer.
             Executor closeExecutor = prepareToClose();
             if (closeExecutor != null) {
@@ -738,6 +739,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                                         outboundBuffer.failFlushed(cause, notify);
                                         outboundBuffer.close(closeCause);
                                     }
+                                    //连接关闭以后会触发inactive跟deregister事件
                                     fireChannelInactiveAndDeregister(wasActive);
                                 }
                             });
@@ -872,6 +874,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             assertEventLoop();
 
             ChannelOutboundBuffer outboundBuffer = this.outboundBuffer;
+            //null表示连接已经关闭
             if (outboundBuffer == null) {
                 // If the outboundBuffer is null we know the channel was closed and so
                 // need to fail the future right away. If it is not null the handling of the rest

@@ -63,6 +63,7 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
      * @param ch                the underlying {@link SelectableChannel} on which it operates
      */
     protected AbstractNioByteChannel(Channel parent, SelectableChannel ch) {
+        //默认对READ事件感兴趣
         super(parent, ch, SelectionKey.OP_READ);
     }
 
@@ -160,10 +161,11 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
 
                     allocHandle.incMessagesRead(1);
                     readPending = false;
+                    //每读完一部分就回调一次channelRead方法
                     pipeline.fireChannelRead(byteBuf);
                     byteBuf = null;
                 } while (allocHandle.continueReading());
-
+                //当本批次的数据已经读完以后，回调readComplete方法
                 allocHandle.readComplete();
                 pipeline.fireChannelReadComplete();
 

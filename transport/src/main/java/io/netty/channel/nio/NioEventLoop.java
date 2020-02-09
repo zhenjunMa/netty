@@ -60,8 +60,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
 
     private static final int CLEANUP_INTERVAL = 256; // XXX Hard-coded value, but won't need customization.
 
-    private static final boolean DISABLE_KEY_SET_OPTIMIZATION =
-            SystemPropertyUtil.getBoolean("io.netty.noKeySetOptimization", false);
+    private static final boolean DISABLE_KEY_SET_OPTIMIZATION = SystemPropertyUtil.getBoolean("io.netty.noKeySetOptimization", false);
 
     private static final int MIN_PREMATURE_SELECTOR_RETURNS = 3;
     private static final int SELECTOR_AUTO_REBUILD_THRESHOLD;
@@ -448,12 +447,14 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                         // fall-through to SELECT since the busy-wait is not supported with NIO
 
                     case SelectStrategy.SELECT:
+                        //返回下一个调度任务的执行时间， -1表示当前没有待调度任务
                         long curDeadlineNanos = nextScheduledTaskDeadlineNanos();
                         if (curDeadlineNanos == -1L) {
                             curDeadlineNanos = NONE; // nothing on the calendar
                         }
                         nextWakeupNanos.set(curDeadlineNanos);
                         try {
+                            //再次判断下有没有异步任务
                             if (!hasTasks()) {
                                 strategy = select(curDeadlineNanos);
                             }
@@ -479,7 +480,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                 needsToSelectAgain = false;
                 final int ioRatio = this.ioRatio;
                 boolean ranTasks;
-                //ioRatio值越小表示花费在非IO的任务上的时间越多
+                //ioRatio值越大表示花在执行IO任务上的时间越多，当然始终是优先执行IO事件
                 if (ioRatio == 100) {
                     try {
                         //strategy>0表示有待处理的IO任务，优先处理
@@ -501,6 +502,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                         //ioTime是本次执行IO所用的时间
                         final long ioTime = System.nanoTime() - ioStartTime;
                         //根据ioTime跟ioRate计算中本次执行异步任务可用的总耗时
+                        // taskTime / ioTime = (100 - ioRatio) / ioRatio
                         ranTasks = runAllTasks(ioTime * (100 - ioRatio) / ioRatio);
                     }
                 } else {
@@ -510,11 +512,11 @@ public final class NioEventLoop extends SingleThreadEventLoop {
 
                 if (ranTasks || strategy > 0) {
                     if (selectCnt > MIN_PREMATURE_SELECTOR_RETURNS && logger.isDebugEnabled()) {
-                        logger.debug("Selector.select() returned prematurely {} times in a row for Selector {}.",
-                                selectCnt - 1, selector);
+                        logger.debug("Selector.select() returned prematurely {} times in a row for Selector {}.", selectCnt - 1, selector);
                     }
                     selectCnt = 0;
                 } else if (unexpectedSelectorWakeup(selectCnt)) { // Unexpected wakeup (unusual case)
+                    //既没有异步任务，也没有IO事件
                     selectCnt = 0;
                 }
             } catch (CancelledKeyException e) {
@@ -555,12 +557,11 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             }
             return true;
         }
-        if (SELECTOR_AUTO_REBUILD_THRESHOLD > 0 &&
-                selectCnt >= SELECTOR_AUTO_REBUILD_THRESHOLD) {
+        //通过短时间内select返回的次数过多判断触发了JDK bug，此时重建select
+        if (SELECTOR_AUTO_REBUILD_THRESHOLD > 0 && selectCnt >= SELECTOR_AUTO_REBUILD_THRESHOLD) {
             // The selector returned prematurely many times in a row.
             // Rebuild the selector to work around the problem.
-            logger.warn("Selector.select() returned prematurely {} times in a row; rebuilding Selector {}.",
-                    selectCnt, selector);
+            logger.warn("Selector.select() returned prematurely {} times in a row; rebuilding Selector {}.", selectCnt, selector);
             rebuildSelector();
             return true;
         }
@@ -581,8 +582,10 @@ public final class NioEventLoop extends SingleThreadEventLoop {
 
     private void processSelectedKeys() {
         if (selectedKeys != null) {
+            //处理优化后的NIO
             processSelectedKeysOptimized();
         } else {
+            //处理原始的NIO
             processSelectedKeysPlain(selector.selectedKeys());
         }
     }
@@ -700,6 +703,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             int readyOps = k.readyOps();
             // We first need to call finishConnect() before try to trigger a read(...) or write(...) as otherwise
             // the NIO JDK channel implementation may throw a NotYetConnectedException.
+            //处理调用端的连接成功事件
             if ((readyOps & SelectionKey.OP_CONNECT) != 0) {
                 // remove OP_CONNECT as otherwise Selector.select(..) will always return without blocking
                 // See https://github.com/netty/netty/issues/924
