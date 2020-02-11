@@ -1000,8 +1000,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
         return channel().hasAttr(key);
     }
 
-    private static boolean safeExecute(EventExecutor executor, Runnable runnable,
-            ChannelPromise promise, Object msg, boolean lazy) {
+    private static boolean safeExecute(EventExecutor executor, Runnable runnable, ChannelPromise promise, Object msg, boolean lazy) {
         try {
             if (lazy && executor instanceof AbstractEventExecutor) {
                 ((AbstractEventExecutor) executor).lazyExecute(runnable);
@@ -1046,8 +1045,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
             return task;
         }
 
-        private static final boolean ESTIMATE_TASK_SIZE_ON_SUBMIT =
-                SystemPropertyUtil.getBoolean("io.netty.transport.estimateSizeOnSubmit", true);
+        private static final boolean ESTIMATE_TASK_SIZE_ON_SUBMIT = SystemPropertyUtil.getBoolean("io.netty.transport.estimateSizeOnSubmit", true);
 
         // Assuming compressed oops, 12 bytes obj header, 4 ref fields and one int field
         private static final int WRITE_TASK_OVERHEAD =

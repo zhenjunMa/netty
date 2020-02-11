@@ -36,8 +36,7 @@ public class DefaultPromise<V> extends AbstractFuture<V> implements Promise<V> {
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(DefaultPromise.class);
     private static final InternalLogger rejectedExecutionLogger =
             InternalLoggerFactory.getInstance(DefaultPromise.class.getName() + ".rejectedExecution");
-    private static final int MAX_LISTENER_STACK_DEPTH = Math.min(8,
-            SystemPropertyUtil.getInt("io.netty.defaultPromise.maxListenerStackDepth", 8));
+    private static final int MAX_LISTENER_STACK_DEPTH = Math.min(8, SystemPropertyUtil.getInt("io.netty.defaultPromise.maxListenerStackDepth", 8));
     @SuppressWarnings("rawtypes")
     private static final AtomicReferenceFieldUpdater<DefaultPromise, Object> RESULT_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(DefaultPromise.class, Object.class, "result");
@@ -179,6 +178,7 @@ public class DefaultPromise<V> extends AbstractFuture<V> implements Promise<V> {
             addListener0(listener);
         }
 
+        //如果任务已经完成，则马上通知结果
         if (isDone()) {
             notifyListeners();
         }
@@ -609,8 +609,7 @@ public class DefaultPromise<V> extends AbstractFuture<V> implements Promise<V> {
     }
 
     private boolean setValue0(Object objResult) {
-        if (RESULT_UPDATER.compareAndSet(this, null, objResult) ||
-            RESULT_UPDATER.compareAndSet(this, UNCANCELLABLE, objResult)) {
+        if (RESULT_UPDATER.compareAndSet(this, null, objResult) || RESULT_UPDATER.compareAndSet(this, UNCANCELLABLE, objResult)) {
             if (checkNotifyWaiters()) {
                 notifyListeners();
             }

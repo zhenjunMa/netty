@@ -107,8 +107,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
      * @param addTaskWakesUp    {@code true} if and only if invocation of {@link #addTask(Runnable)} will wake up the
      *                          executor thread
      */
-    protected SingleThreadEventExecutor(
-            EventExecutorGroup parent, ThreadFactory threadFactory, boolean addTaskWakesUp) {
+    protected SingleThreadEventExecutor(EventExecutorGroup parent, ThreadFactory threadFactory, boolean addTaskWakesUp) {
         this(parent, new ThreadPerTaskExecutor(threadFactory), addTaskWakesUp);
     }
 
@@ -860,6 +859,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
             }
         }
 
+        //唤醒event loop线程，因此它可能正阻塞在select()
         if (!addTaskWakesUp && immediate) {
             wakeup(inEventLoop);
         }
