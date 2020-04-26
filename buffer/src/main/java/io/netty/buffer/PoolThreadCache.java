@@ -42,6 +42,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 final class PoolThreadCache {
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(PoolThreadCache.class);
+    private static final int INTEGER_SIZE_MINUS_ONE = Integer.SIZE - 1;
 
     final PoolArena<byte[]> heapArena;
     final PoolArena<ByteBuffer> directArena;
@@ -153,13 +154,9 @@ final class PoolThreadCache {
         }
     }
 
+    // val > 0
     private static int log2(int val) {
-        int res = 0;
-        while (val > 1) {
-            val >>= 1;
-            res++;
-        }
-        return res;
+        return INTEGER_SIZE_MINUS_ONE - Integer.numberOfLeadingZeros(val);
     }
 
     /**
@@ -190,7 +187,7 @@ final class PoolThreadCache {
             return false;
         }
         //cache是每个线程私有的，优先在cache里面进行分配
-        boolean allocated = cache.allocate(buf, reqCapacity);
+        boolean allocated = cache.allocate(buf, reqCapacity, this);
         if (++ allocations >= freeSweepAllocationThreshold) {
             allocations = 0;
             trim();
@@ -327,6 +324,7 @@ final class PoolThreadCache {
     private MemoryRegionCache<?> cacheForNormal(PoolArena<?> area, int normCapacity) {
         if (area.isDirect()) {
             //numShiftsNormalDirect是pageSize对应的位数
+            // sizeClass == Normal => normCapacity >= pageSize => the shifted value > 0
             int idx = log2(normCapacity >> numShiftsNormalDirect);
             return cache(normalDirectCaches, idx);
         }
@@ -351,8 +349,9 @@ final class PoolThreadCache {
 
         @Override
         protected void initBuf(
-                PoolChunk<T> chunk, ByteBuffer nioBuffer, long handle, PooledByteBuf<T> buf, int reqCapacity) {
-            chunk.initBufWithSubpage(buf, nioBuffer, handle, reqCapacity);
+                PoolChunk<T> chunk, ByteBuffer nioBuffer, long handle, PooledByteBuf<T> buf, int reqCapacity,
+                PoolThreadCache threadCache) {
+            chunk.initBufWithSubpage(buf, nioBuffer, handle, reqCapacity, threadCache);
         }
     }
 
@@ -366,8 +365,9 @@ final class PoolThreadCache {
 
         @Override
         protected void initBuf(
-                PoolChunk<T> chunk, ByteBuffer nioBuffer, long handle, PooledByteBuf<T> buf, int reqCapacity) {
-            chunk.initBuf(buf, nioBuffer, handle, reqCapacity);
+                PoolChunk<T> chunk, ByteBuffer nioBuffer, long handle, PooledByteBuf<T> buf, int reqCapacity,
+                PoolThreadCache threadCache) {
+            chunk.initBuf(buf, nioBuffer, handle, reqCapacity, threadCache);
         }
     }
 
@@ -387,7 +387,7 @@ final class PoolThreadCache {
          * Init the {@link PooledByteBuf} using the provided chunk and handle with the capacity restrictions.
          */
         protected abstract void initBuf(PoolChunk<T> chunk, ByteBuffer nioBuffer, long handle,
-                                        PooledByteBuf<T> buf, int reqCapacity);
+                                        PooledByteBuf<T> buf, int reqCapacity, PoolThreadCache threadCache);
 
         /**
          * Add to cache if not already full.
@@ -407,12 +407,12 @@ final class PoolThreadCache {
         /**
          * Allocate something out of the cache if possible and remove the entry from the cache.
          */
-        public final boolean allocate(PooledByteBuf<T> buf, int reqCapacity) {
+        public final boolean allocate(PooledByteBuf<T> buf, int reqCapacity, PoolThreadCache threadCache) {
             Entry<T> entry = queue.poll();
             if (entry == null) {
                 return false;
             }
-            initBuf(entry.chunk, entry.nioBuffer, entry.handle, buf, reqCapacity);
+            initBuf(entry.chunk, entry.nioBuffer, entry.handle, buf, reqCapacity, threadCache);
             //用一次就直接回收？
             entry.recycle();
 

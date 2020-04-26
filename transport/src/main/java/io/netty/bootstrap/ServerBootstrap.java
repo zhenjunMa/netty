@@ -32,6 +32,7 @@ import io.netty.util.internal.ObjectUtil;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
@@ -45,7 +46,9 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(ServerBootstrap.class);
 
-    private final Map<ChannelOption<?>, Object> childOptions = new ConcurrentHashMap<ChannelOption<?>, Object>();
+    // The order in which child ChannelOptions are applied is important they may depend on each other for validation
+    // purposes.
+    private final Map<ChannelOption<?>, Object> childOptions = new LinkedHashMap<ChannelOption<?>, Object>();
     private final Map<AttributeKey<?>, Object> childAttrs = new ConcurrentHashMap<AttributeKey<?>, Object>();
     private final ServerBootstrapConfig config = new ServerBootstrapConfig(this);
     private volatile EventLoopGroup childGroup;
@@ -57,7 +60,9 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         super(bootstrap);
         childGroup = bootstrap.childGroup;
         childHandler = bootstrap.childHandler;
-        childOptions.putAll(bootstrap.childOptions);
+        synchronized (bootstrap.childOptions) {
+            childOptions.putAll(bootstrap.childOptions);
+        }
         childAttrs.putAll(bootstrap.childAttrs);
     }
 
@@ -92,10 +97,12 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
      */
     public <T> ServerBootstrap childOption(ChannelOption<T> childOption, T value) {
         ObjectUtil.checkNotNull(childOption, "childOption");
-        if (value == null) {
-            childOptions.remove(childOption);
-        } else {
-            childOptions.put(childOption, value);
+        synchronized (childOptions) {
+            if (value == null) {
+                childOptions.remove(childOption);
+            } else {
+                childOptions.put(childOption, value);
+            }
         }
         return this;
     }
@@ -125,7 +132,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
 
     @Override
     void init(Channel channel) {
-        setChannelOptions(channel, options0().entrySet().toArray(EMPTY_OPTION_ARRAY), logger);
+        setChannelOptions(channel, newOptionsArray(), logger);
         setAttributes(channel, attrs0().entrySet().toArray(EMPTY_ATTRIBUTE_ARRAY));
 
         //pipeline在channel的构造函数里就创建好了
@@ -133,7 +140,12 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
 
         final EventLoopGroup currentChildGroup = childGroup;
         final ChannelHandler currentChildHandler = childHandler;
-        final Entry<ChannelOption<?>, Object>[] currentChildOptions = childOptions.entrySet().toArray(EMPTY_OPTION_ARRAY);
+
+        final Entry<ChannelOption<?>, Object>[] currentChildOptions;
+        synchronized (childOptions) {
+            currentChildOptions = childOptions.entrySet().toArray(EMPTY_OPTION_ARRAY);
+        }
+
         final Entry<AttributeKey<?>, Object>[] currentChildAttrs = childAttrs.entrySet().toArray(EMPTY_ATTRIBUTE_ARRAY);
 
         //添加一个handler，这里还只是添加，initChannel方法并没有执行
@@ -267,7 +279,9 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
     }
 
     final Map<ChannelOption<?>, Object> childOptions() {
-        return copiedMap(childOptions);
+        synchronized (childOptions) {
+            return copiedMap(childOptions);
+        }
     }
 
     final Map<AttributeKey<?>, Object> childAttrs() {

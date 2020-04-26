@@ -124,8 +124,8 @@ public abstract class AbstractDiskHttpData extends AbstractHttpData {
                 return;
             }
             RandomAccessFile accessFile = new RandomAccessFile(file, "rw");
-            accessFile.setLength(0);
             try {
+                accessFile.setLength(0);
                 FileChannel localfileChannel = accessFile.getChannel();
                 ByteBuffer byteBuffer = buffer.nioBuffer();
                 int written = 0;
@@ -184,8 +184,11 @@ public abstract class AbstractDiskHttpData extends AbstractHttpData {
                 RandomAccessFile accessFile = new RandomAccessFile(file, "rw");
                 fileChannel = accessFile.getChannel();
             }
-            fileChannel.force(false);
-            fileChannel.close();
+            try {
+                fileChannel.force(false);
+            } finally {
+                fileChannel.close();
+            }
             fileChannel = null;
             setCompleted();
         } else {
@@ -213,9 +216,9 @@ public abstract class AbstractDiskHttpData extends AbstractHttpData {
         }
         file = tempFile();
         RandomAccessFile accessFile = new RandomAccessFile(file, "rw");
-        accessFile.setLength(0);
         int written = 0;
         try {
+            accessFile.setLength(0);
             FileChannel localfileChannel = accessFile.getChannel();
             byte[] bytes = new byte[4096 * 4];
             ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
