@@ -1157,9 +1157,9 @@ public abstract class SSLEngineTest {
         assertEquals(expectedApplicationProtocol, appProto);
 
         SSLEngine engine = handler.engine();
-        if (engine instanceof Java9SslEngine) {
+        if (engine instanceof JdkAlpnSslEngine) {
             // Also verify the Java9 exposed method.
-            Java9SslEngine java9SslEngine = (Java9SslEngine) engine;
+            JdkAlpnSslEngine java9SslEngine = (JdkAlpnSslEngine) engine;
             assertEquals(expectedApplicationProtocol == null ? StringUtil.EMPTY_STRING : expectedApplicationProtocol,
                     java9SslEngine.getApplicationProtocol());
         }
@@ -2978,7 +2978,12 @@ public abstract class SSLEngineTest {
             assertTrue(serverSession.getPacketBufferSize() > 0);
 
             assertNotNull(clientSession.getSessionContext());
-            assertNotNull(serverSession.getSessionContext());
+
+            // Workaround for JDK 14 regression.
+            // See https://bugs.openjdk.java.net/browse/JDK-8242008
+            if (PlatformDependent.javaVersion() < 14) {
+                assertNotNull(serverSession.getSessionContext());
+            }
 
             Object value = new Object();
 
