@@ -19,17 +19,24 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.Unpooled;
 import io.netty.util.CharsetUtil;
+import io.netty.util.internal.PlatformDependent;
 
 import org.junit.Test;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.UUID;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class DiskFileUploadTest {
     @Test
@@ -192,6 +199,59 @@ public class DiskFileUploadTest {
             return buf;
         } finally {
             fis.close();
+        }
+    }
+
+    @Test
+    public void testDelete() throws Exception {
+        String json = "{\"foo\":\"bar\"}";
+        byte[] bytes = json.getBytes(CharsetUtil.UTF_8);
+        File tmpFile = null;
+        DiskFileUpload f1 = new DiskFileUpload("file4", "file4", "application/json", null, null, 0);
+        try {
+            assertNull(f1.getFile());
+            f1.setContent(Unpooled.wrappedBuffer(bytes));
+            assertNotNull(tmpFile = f1.getFile());
+        } finally {
+            f1.delete();
+            assertNull(f1.getFile());
+            assertNotNull(tmpFile);
+            assertFalse(tmpFile.exists());
+        }
+    }
+
+    @Test
+    public void setSetContentFromFileExceptionally() throws Exception {
+        final long maxSize = 4;
+        DiskFileUpload f1 = new DiskFileUpload("file5", "file5", "application/json", null, null, 0);
+        f1.setMaxSize(maxSize);
+        try {
+            f1.setContent(Unpooled.wrappedBuffer(new byte[(int) maxSize]));
+            File originalFile = f1.getFile();
+            assertNotNull(originalFile);
+            assertEquals(maxSize, originalFile.length());
+            assertEquals(maxSize, f1.length());
+            byte[] bytes = new byte[8];
+            PlatformDependent.threadLocalRandom().nextBytes(bytes);
+            File tmpFile = File.createTempFile(UUID.randomUUID().toString(), ".tmp");
+            tmpFile.deleteOnExit();
+            FileOutputStream fos = new FileOutputStream(tmpFile);
+            try {
+                fos.write(bytes);
+                fos.flush();
+            } finally {
+                fos.close();
+            }
+            try {
+                f1.setContent(tmpFile);
+                fail("should not reach here!");
+            } catch (IOException e) {
+                assertNotNull(f1.getFile());
+                assertEquals(originalFile, f1.getFile());
+                assertEquals(maxSize, f1.length());
+            }
+        } finally {
+            f1.delete();
         }
     }
 }

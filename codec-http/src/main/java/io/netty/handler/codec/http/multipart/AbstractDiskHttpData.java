@@ -198,12 +198,13 @@ public abstract class AbstractDiskHttpData extends AbstractHttpData {
 
     @Override
     public void setContent(File file) throws IOException {
+        long size = file.length();
+        checkSize(size);
+        this.size = size;
         if (this.file != null) {
             delete();
         }
         this.file = file;
-        size = file.length();
-        checkSize(size);
         isRenamed = true;
         setCompleted();
     }
@@ -250,9 +251,14 @@ public abstract class AbstractDiskHttpData extends AbstractHttpData {
         if (fileChannel != null) {
             try {
                 fileChannel.force(false);
-                fileChannel.close();
             } catch (IOException e) {
-                logger.warn("Failed to close a file.", e);
+                logger.warn("Failed to force.", e);
+            } finally {
+                try {
+                    fileChannel.close();
+                } catch (IOException e) {
+                    logger.warn("Failed to close a file.", e);
+                }
             }
             fileChannel = null;
         }
