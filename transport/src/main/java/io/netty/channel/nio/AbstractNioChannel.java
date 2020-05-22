@@ -378,7 +378,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         boolean selected = false;
         for (;;) {
             try {
-                //调用Java API进程注册，这里还没有注册感兴趣的事件
+                //调用Java API进程注册，这里还没有注册感兴趣的事件，注意最后一个参数attach会在有事件的时候带回来
                 selectionKey = javaChannel().register(eventLoop().unwrappedSelector(), 0, this);
                 return;
             } catch (CancelledKeyException e) {

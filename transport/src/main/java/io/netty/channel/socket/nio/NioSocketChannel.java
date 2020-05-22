@@ -466,9 +466,12 @@ public class NioSocketChannel extends AbstractNioByteChannel implements io.netty
     }
 
     private final class NioSocketChannelConfig extends DefaultSocketChannelConfig {
+
         private volatile int maxBytesPerGatheringWrite = Integer.MAX_VALUE;
+
         private NioSocketChannelConfig(NioSocketChannel channel, Socket javaSocket) {
             super(channel, javaSocket);
+            //计算每次写出数据的大小
             calculateMaxBytesPerGatheringWrite();
         }
 

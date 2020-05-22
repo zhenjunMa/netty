@@ -122,8 +122,7 @@ final class PoolThreadCache {
         }
     }
 
-    private static <T> MemoryRegionCache<T>[] createSubPageCaches(
-            int cacheSize, int numCaches, SizeClass sizeClass) {
+    private static <T> MemoryRegionCache<T>[] createSubPageCaches(int cacheSize, int numCaches, SizeClass sizeClass) {
         if (cacheSize > 0 && numCaches > 0) {
             @SuppressWarnings("unchecked")
             MemoryRegionCache<T>[] cache = new MemoryRegionCache[numCaches];

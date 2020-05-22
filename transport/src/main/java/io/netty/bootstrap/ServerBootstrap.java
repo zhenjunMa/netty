@@ -138,14 +138,15 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         //pipeline在channel的构造函数里就创建好了
         ChannelPipeline p = channel.pipeline();
 
+        /**
+         * 构建新进来的里连接需要用到的属性
+         */
         final EventLoopGroup currentChildGroup = childGroup;
         final ChannelHandler currentChildHandler = childHandler;
-
         final Entry<ChannelOption<?>, Object>[] currentChildOptions;
         synchronized (childOptions) {
             currentChildOptions = childOptions.entrySet().toArray(EMPTY_OPTION_ARRAY);
         }
-
         final Entry<AttributeKey<?>, Object>[] currentChildAttrs = childAttrs.entrySet().toArray(EMPTY_ATTRIBUTE_ARRAY);
 
         //添加一个handler，这里还只是添加，initChannel方法并没有执行
@@ -159,6 +160,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
                     pipeline.addLast(handler);
                 }
 
+                //这里感觉没必要用异步？
                 ch.eventLoop().execute(new Runnable() {
                     @Override
                     public void run() {

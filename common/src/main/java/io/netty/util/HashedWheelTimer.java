@@ -79,18 +79,15 @@ import static io.netty.util.internal.StringUtil.simpleClassName;
  */
 public class HashedWheelTimer implements Timer {
 
-    static final InternalLogger logger =
-            InternalLoggerFactory.getInstance(HashedWheelTimer.class);
+    static final InternalLogger logger = InternalLoggerFactory.getInstance(HashedWheelTimer.class);
 
     private static final AtomicInteger INSTANCE_COUNTER = new AtomicInteger();
     private static final AtomicBoolean WARNED_TOO_MANY_INSTANCES = new AtomicBoolean();
     private static final int INSTANCE_COUNT_LIMIT = 64;
     private static final long MILLISECOND_NANOS = TimeUnit.MILLISECONDS.toNanos(1);
-    private static final ResourceLeakDetector<HashedWheelTimer> leakDetector = ResourceLeakDetectorFactory.instance()
-            .newResourceLeakDetector(HashedWheelTimer.class, 1);
+    private static final ResourceLeakDetector<HashedWheelTimer> leakDetector = ResourceLeakDetectorFactory.instance().newResourceLeakDetector(HashedWheelTimer.class, 1);
 
-    private static final AtomicIntegerFieldUpdater<HashedWheelTimer> WORKER_STATE_UPDATER =
-            AtomicIntegerFieldUpdater.newUpdater(HashedWheelTimer.class, "workerState");
+    private static final AtomicIntegerFieldUpdater<HashedWheelTimer> WORKER_STATE_UPDATER = AtomicIntegerFieldUpdater.newUpdater(HashedWheelTimer.class, "workerState");
 
     private final ResourceLeakTracker<HashedWheelTimer> leak;
     private final Worker worker = new Worker();
@@ -417,6 +414,7 @@ public class HashedWheelTimer implements Timer {
 
         // Add the timeout to the timeout queue which will be processed on the next tick.
         // During processing all the queued HashedWheelTimeouts will be added to the correct HashedWheelBucket.
+        //任务需要开始执行的时间间隔
         long deadline = System.nanoTime() + unit.toNanos(delay) - startTime;
 
         // Guard against overflow.
@@ -445,6 +443,7 @@ public class HashedWheelTimer implements Timer {
     }
 
     private final class Worker implements Runnable {
+
         private final Set<Timeout> unprocessedTimeouts = new HashSet<Timeout>();
 
         private long tick;
@@ -466,8 +465,7 @@ public class HashedWheelTimer implements Timer {
                 if (deadline > 0) {
                     int idx = (int) (tick & mask);
                     processCancelledTasks();
-                    HashedWheelBucket bucket =
-                            wheel[idx];
+                    HashedWheelBucket bucket = wheel[idx];
                     transferTimeoutsToBuckets();
                     bucket.expireTimeouts(deadline);
                     tick++;
@@ -504,7 +502,9 @@ public class HashedWheelTimer implements Timer {
                     continue;
                 }
 
+                //计算需要多少个tick
                 long calculated = timeout.deadline / tickDuration;
+                //设置需要转多少圈   每圈的时间等于tickDuration * wheel.length
                 timeout.remainingRounds = (calculated - tick) / wheel.length;
 
                 final long ticks = Math.max(calculated, tick); // Ensure we don't schedule for past.
@@ -539,9 +539,11 @@ public class HashedWheelTimer implements Timer {
          * current time otherwise (with Long.MIN_VALUE changed by +1)
          */
         private long waitForNextTick() {
+            //tick初始值为0
             long deadline = tickDuration * (tick + 1);
 
             for (;;) {
+                //currentTime已经过去的时间
                 final long currentTime = System.nanoTime() - startTime;
                 long sleepTimeMs = (deadline - currentTime + 999999) / 1000000;
 
@@ -744,6 +746,7 @@ public class HashedWheelTimer implements Timer {
                 if (timeout.remainingRounds <= 0) {
                     next = remove(timeout);
                     if (timeout.deadline <= deadline) {
+                        //执行任务
                         timeout.expire();
                     } else {
                         // The timeout was placed into a wrong slot. This should never happen.
