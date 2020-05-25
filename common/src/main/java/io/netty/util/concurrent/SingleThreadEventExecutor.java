@@ -280,11 +280,12 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         }
         long nanoTime = AbstractScheduledEventExecutor.nanoTime();
         for (;;) {
+            //把需要被调度的任务（时间到了）从调度队列中取出然后加入到异步任务队列
+            //也就是说调度任务跟异步任务会一起执行
             Runnable scheduledTask = pollScheduledTask(nanoTime);
             if (scheduledTask == null) {
                 return true;
             }
-            //把待执行的调度任务加入到taskQueue,可以被eventloop执行
             if (!taskQueue.offer(scheduledTask)) {
                 // No space left in the task queue add it back to the scheduledTaskQueue so we pick it up again.
                 //重新加入调度队列
@@ -838,6 +839,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
 
     private void execute(Runnable task, boolean immediate) {
         boolean inEventLoop = inEventLoop();
+        //添加异步任务
         addTask(task);
         if (!inEventLoop) {
             //真正开启线程

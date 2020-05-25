@@ -438,14 +438,17 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                     //hasTasks()为true,直接调用selectNowSupplier，也就是返回selectNow()， 如果为false，返回SelectStrategy.SELECT
                     strategy = selectStrategy.calculateStrategy(selectNowSupplier, hasTasks());
                     switch (strategy) {
+                        //空转
                     case SelectStrategy.CONTINUE:
                         continue;
 
                     case SelectStrategy.BUSY_WAIT:
                         // fall-through to SELECT since the busy-wait is not supported with NIO
 
+                        //SelectStrategy.SELECT表示当前没有待执行的异步任务，可以阻塞等待IO事件
                     case SelectStrategy.SELECT:
                         //返回下一个调度任务的执行时间， -1表示当前没有待调度任务
+                        //注：上面hasTasks()是判断当前是否有异步任务，这里是判断当前最近的调度任务，这是两个事情
                         long curDeadlineNanos = nextScheduledTaskDeadlineNanos();
                         if (curDeadlineNanos == -1L) {
                             curDeadlineNanos = NONE; // nothing on the calendar
@@ -454,6 +457,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                         try {
                             //再次判断下有没有异步任务
                             if (!hasTasks()) {
+                                //如果没有调度任务会调用一直阻塞的select()方法
                                 strategy = select(curDeadlineNanos);
                             }
                         } finally {
@@ -505,9 +509,11 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                     }
                 } else {
                     //如果ioRatio不为0且没有待处理的IO任务
+                    //执行最少的任务数，避免后面来的IO事件得不到及时处理
                     ranTasks = runAllTasks(0); // This will run the minimum number of tasks
                 }
 
+                //每次唤醒以后，如果执行了任务或者是IO时间大于0 则正常
                 if (ranTasks || strategy > 0) {
                     if (selectCnt > MIN_PREMATURE_SELECTOR_RETURNS && logger.isDebugEnabled()) {
                         logger.debug("Selector.select() returned prematurely {} times in a row for Selector {}.", selectCnt - 1, selector);
@@ -555,6 +561,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             }
             return true;
         }
+        //select线程被多次唤醒且既没有IO事件也没有异步事件，则可能是触发了JDK nio的BUG
         //通过短时间内select返回的次数过多判断触发了JDK bug，此时重建select
         if (SELECTOR_AUTO_REBUILD_THRESHOLD > 0 && selectCnt >= SELECTOR_AUTO_REBUILD_THRESHOLD) {
             // The selector returned prematurely many times in a row.
@@ -783,6 +790,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
 
     @Override
     protected void wakeup(boolean inEventLoop) {
+        //唤醒Select
         if (!inEventLoop && nextWakeupNanos.getAndSet(AWAKE) != AWAKE) {
             selector.wakeup();
         }
