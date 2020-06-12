@@ -467,6 +467,7 @@ public class HashedWheelTimer implements Timer {
                     processCancelledTasks();
                     HashedWheelBucket bucket = wheel[idx];
                     transferTimeoutsToBuckets();
+                    //执行任务
                     bucket.expireTimeouts(deadline);
                     tick++;
                 }
@@ -545,6 +546,7 @@ public class HashedWheelTimer implements Timer {
             for (;;) {
                 //currentTime已经过去的时间
                 final long currentTime = System.nanoTime() - startTime;
+                //需要过去的时间 - 已经过去的时间 = 还需要等待过去的时间（睡眠时间）
                 long sleepTimeMs = (deadline - currentTime + 999999) / 1000000;
 
                 if (sleepTimeMs <= 0) {
@@ -555,7 +557,7 @@ public class HashedWheelTimer implements Timer {
                     }
                 }
 
-                // Check if we run on windows, as if thats the case we will need
+                // Check if we run on windows, as if that's the case we will need
                 // to round the sleepTime as workaround for a bug that only affect
                 // the JVM if it runs on windows.
                 //

@@ -54,6 +54,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
     static final int DEFAULT_MAX_CACHED_BYTEBUFFERS_PER_CHUNK;
 
     private static final int MIN_PAGE_SIZE = 4096;
+    //2^30
     private static final int MAX_CHUNK_SIZE = (int) (((long) Integer.MAX_VALUE + 1) / 2);
 
     private final Runnable trimTask = new Runnable() {
@@ -64,6 +65,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
     };
 
     static {
+        //一页是8K
         int defaultPageSize = SystemPropertyUtil.getInt("io.netty.allocator.pageSize", 8192);
         Throwable pageSizeFallbackCause = null;
         try {
@@ -96,7 +98,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
          * See https://github.com/netty/netty/issues/3888.
          */
         final int defaultMinNumArena = NettyRuntime.availableProcessors() * 2;
-        //16MB
+        //16MB = 8K * 2^11
         final int defaultChunkSize = DEFAULT_PAGE_SIZE << DEFAULT_MAX_ORDER;
         DEFAULT_NUM_HEAP_ARENA = Math.max(0,
                 SystemPropertyUtil.getInt(
@@ -110,21 +112,20 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
                         "io.netty.allocator.numDirectArenas",
                         (int) Math.min(
                                 defaultMinNumArena,
+                                //netty可用的最大直接内存
                                 PlatformDependent.maxDirectMemory() / defaultChunkSize / 2 / 3)));
 
-        // cache sizes
+        // cache sizes   我怎么感觉名字跟尺寸反了？
         DEFAULT_TINY_CACHE_SIZE = SystemPropertyUtil.getInt("io.netty.allocator.tinyCacheSize", 512);
         DEFAULT_SMALL_CACHE_SIZE = SystemPropertyUtil.getInt("io.netty.allocator.smallCacheSize", 256);
         DEFAULT_NORMAL_CACHE_SIZE = SystemPropertyUtil.getInt("io.netty.allocator.normalCacheSize", 64);
 
         // 32 kb is the default maximum capacity of the cached buffer. Similar to what is explained in
         // 'Scalable memory allocation using jemalloc'
-        DEFAULT_MAX_CACHED_BUFFER_CAPACITY = SystemPropertyUtil.getInt(
-                "io.netty.allocator.maxCachedBufferCapacity", 32 * 1024);
+        DEFAULT_MAX_CACHED_BUFFER_CAPACITY = SystemPropertyUtil.getInt("io.netty.allocator.maxCachedBufferCapacity", 32 * 1024);
 
         // the number of threshold of allocations when cached entries will be freed up if not frequently used
-        DEFAULT_CACHE_TRIM_INTERVAL = SystemPropertyUtil.getInt(
-                "io.netty.allocator.cacheTrimInterval", 8192);
+        DEFAULT_CACHE_TRIM_INTERVAL = SystemPropertyUtil.getInt("io.netty.allocator.cacheTrimInterval", 8192);
 
         if (SystemPropertyUtil.contains("io.netty.allocation.cacheTrimIntervalMillis")) {
             logger.warn("-Dio.netty.allocation.cacheTrimIntervalMillis is deprecated," +
@@ -132,27 +133,21 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
 
             if (SystemPropertyUtil.contains("io.netty.allocator.cacheTrimIntervalMillis")) {
                 // Both system properties are specified. Use the non-deprecated one.
-                DEFAULT_CACHE_TRIM_INTERVAL_MILLIS = SystemPropertyUtil.getLong(
-                        "io.netty.allocator.cacheTrimIntervalMillis", 0);
+                DEFAULT_CACHE_TRIM_INTERVAL_MILLIS = SystemPropertyUtil.getLong("io.netty.allocator.cacheTrimIntervalMillis", 0);
             } else {
-                DEFAULT_CACHE_TRIM_INTERVAL_MILLIS = SystemPropertyUtil.getLong(
-                        "io.netty.allocation.cacheTrimIntervalMillis", 0);
+                DEFAULT_CACHE_TRIM_INTERVAL_MILLIS = SystemPropertyUtil.getLong("io.netty.allocation.cacheTrimIntervalMillis", 0);
             }
         } else {
-            DEFAULT_CACHE_TRIM_INTERVAL_MILLIS = SystemPropertyUtil.getLong(
-                    "io.netty.allocator.cacheTrimIntervalMillis", 0);
+            DEFAULT_CACHE_TRIM_INTERVAL_MILLIS = SystemPropertyUtil.getLong("io.netty.allocator.cacheTrimIntervalMillis", 0);
         }
 
-        DEFAULT_USE_CACHE_FOR_ALL_THREADS = SystemPropertyUtil.getBoolean(
-                "io.netty.allocator.useCacheForAllThreads", true);
+        DEFAULT_USE_CACHE_FOR_ALL_THREADS = SystemPropertyUtil.getBoolean("io.netty.allocator.useCacheForAllThreads", true);
 
-        DEFAULT_DIRECT_MEMORY_CACHE_ALIGNMENT = SystemPropertyUtil.getInt(
-                "io.netty.allocator.directMemoryCacheAlignment", 0);
+        DEFAULT_DIRECT_MEMORY_CACHE_ALIGNMENT = SystemPropertyUtil.getInt("io.netty.allocator.directMemoryCacheAlignment", 0);
 
         // Use 1023 by default as we use an ArrayDeque as backing storage which will then allocate an internal array
         // of 1024 elements. Otherwise we would allocate 2048 and only use 1024 which is wasteful.
-        DEFAULT_MAX_CACHED_BYTEBUFFERS_PER_CHUNK = SystemPropertyUtil.getInt(
-                "io.netty.allocator.maxCachedByteBuffersPerChunk", 1023);
+        DEFAULT_MAX_CACHED_BYTEBUFFERS_PER_CHUNK = SystemPropertyUtil.getInt("io.netty.allocator.maxCachedByteBuffersPerChunk", 1023);
 
         if (logger.isDebugEnabled()) {
             logger.debug("-Dio.netty.allocator.numHeapArenas: {}", DEFAULT_NUM_HEAP_ARENA);
@@ -175,13 +170,11 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
             logger.debug("-Dio.netty.allocator.cacheTrimInterval: {}", DEFAULT_CACHE_TRIM_INTERVAL);
             logger.debug("-Dio.netty.allocator.cacheTrimIntervalMillis: {}", DEFAULT_CACHE_TRIM_INTERVAL_MILLIS);
             logger.debug("-Dio.netty.allocator.useCacheForAllThreads: {}", DEFAULT_USE_CACHE_FOR_ALL_THREADS);
-            logger.debug("-Dio.netty.allocator.maxCachedByteBuffersPerChunk: {}",
-                    DEFAULT_MAX_CACHED_BYTEBUFFERS_PER_CHUNK);
+            logger.debug("-Dio.netty.allocator.maxCachedByteBuffersPerChunk: {}", DEFAULT_MAX_CACHED_BYTEBUFFERS_PER_CHUNK);
         }
     }
 
-    public static final PooledByteBufAllocator DEFAULT =
-            new PooledByteBufAllocator(PlatformDependent.directBufferPreferred());
+    public static final PooledByteBufAllocator DEFAULT = new PooledByteBufAllocator(PlatformDependent.directBufferPreferred());
 
     private final PoolArena<byte[]>[] heapArenas;
     private final PoolArena<ByteBuffer>[] directArenas;
@@ -250,25 +243,26 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
         this.smallCacheSize = smallCacheSize;
         //64
         this.normalCacheSize = normalCacheSize;
-        //计算总大小，pageSize * 2 ^ maxOrder
+        //计算总大小，pageSize * 2 ^ maxOrder = 16M
         chunkSize = validateAndCalculateChunkSize(pageSize, maxOrder);
 
         checkPositiveOrZero(nHeapArena, "nHeapArena");
         checkPositiveOrZero(nDirectArena, "nDirectArena");
 
         checkPositiveOrZero(directMemoryCacheAlignment, "directMemoryCacheAlignment");
-        // directMemoryCacheAlignment 默认是0
+        // directMemoryCacheAlignment 直接内存对齐 默认是0
         if (directMemoryCacheAlignment > 0 && !isDirectMemoryCacheAlignmentSupported()) {
             throw new IllegalArgumentException("directMemoryCacheAlignment is not supported");
         }
 
         if ((directMemoryCacheAlignment & -directMemoryCacheAlignment) != directMemoryCacheAlignment) {
-            throw new IllegalArgumentException("directMemoryCacheAlignment: "
-                    + directMemoryCacheAlignment + " (expected: power of two)");
+            throw new IllegalArgumentException("directMemoryCacheAlignment: " + directMemoryCacheAlignment + " (expected: power of two)");
         }
 
+        //pageSize 低位为0的个数, pageSize=8k pageShifts=13
         int pageShifts = validateAndCalculatePageShifts(pageSize);
 
+        //堆内存、直接内存初始化一个
         if (nHeapArena > 0) {
             heapArenas = newArenaArray(nHeapArena);
             List<PoolArenaMetric> metrics = new ArrayList<PoolArenaMetric>(heapArenas.length);
@@ -289,8 +283,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
             directArenas = newArenaArray(nDirectArena);
             List<PoolArenaMetric> metrics = new ArrayList<PoolArenaMetric>(directArenas.length);
             for (int i = 0; i < directArenas.length; i ++) {
-                PoolArena.DirectArena arena = new PoolArena.DirectArena(
-                        this, pageSize, maxOrder, pageShifts, chunkSize, directMemoryCacheAlignment);
+                PoolArena.DirectArena arena = new PoolArena.DirectArena(this, pageSize, maxOrder, pageShifts, chunkSize, directMemoryCacheAlignment);
                 directArenas[i] = arena;
                 metrics.add(arena);
             }
@@ -317,6 +310,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
         }
 
         // Logarithm base 2. At this point we know that pageSize is a power of two.
+        //低位0的个数
         return Integer.SIZE - 1 - Integer.numberOfLeadingZeros(pageSize);
     }
 
@@ -364,7 +358,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
      * arena管理PoolChunk
      * PoolChunk归还以后缓存在PoolThreadCache中。
      *
-     * 吐槽：内存管理这块代码很乱，对象直接互相引用
+     * 吐槽：内存管理这块代码很乱，对象之间互相引用
      *
      */
     //maxCapacity：默认是Integer.MAX_VALUE，这个是用于扩容的时候进行判断，不是一开始就要申请这么多内存
@@ -499,7 +493,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
                         //32KB                               8KB
                         DEFAULT_MAX_CACHED_BUFFER_CAPACITY, DEFAULT_CACHE_TRIM_INTERVAL);
 
-                //DEFAULT_CACHE_TRIM_INTERVAL_MILLIS 默认是0
+                //DEFAULT_CACHE_TRIM_INTERVAL_MILLIS 默认是0   否则会开启内存回收定时任务
                 if (DEFAULT_CACHE_TRIM_INTERVAL_MILLIS > 0) {
                     final EventExecutor executor = ThreadExecutorMap.currentExecutor();
                     if (executor != null) {

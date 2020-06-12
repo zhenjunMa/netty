@@ -95,14 +95,11 @@ final class PoolThreadCache {
         }
         if (heapArena != null) {
             // Create the caches for the heap allocations
-            tinySubPageHeapCaches = createSubPageCaches(
-                    tinyCacheSize, PoolArena.numTinySubpagePools, SizeClass.Tiny);
-            smallSubPageHeapCaches = createSubPageCaches(
-                    smallCacheSize, heapArena.numSmallSubpagePools, SizeClass.Small);
+            tinySubPageHeapCaches = createSubPageCaches(tinyCacheSize, PoolArena.numTinySubpagePools, SizeClass.Tiny);
+            smallSubPageHeapCaches = createSubPageCaches(smallCacheSize, heapArena.numSmallSubpagePools, SizeClass.Small);
 
             numShiftsNormalHeap = log2(heapArena.pageSize);
-            normalHeapCaches = createNormalCaches(
-                    normalCacheSize, maxCachedBufferCapacity, heapArena);
+            normalHeapCaches = createNormalCaches(normalCacheSize, maxCachedBufferCapacity, heapArena);
 
             heapArena.numThreadCaches.getAndIncrement();
         } else {
@@ -117,8 +114,7 @@ final class PoolThreadCache {
         if ((tinySubPageDirectCaches != null || smallSubPageDirectCaches != null || normalDirectCaches != null
                 || tinySubPageHeapCaches != null || smallSubPageHeapCaches != null || normalHeapCaches != null)
                 && freeSweepAllocationThreshold < 1) {
-            throw new IllegalArgumentException("freeSweepAllocationThreshold: "
-                    + freeSweepAllocationThreshold + " (expected: > 0)");
+            throw new IllegalArgumentException("freeSweepAllocationThreshold: " + freeSweepAllocationThreshold + " (expected: > 0)");
         }
     }
 

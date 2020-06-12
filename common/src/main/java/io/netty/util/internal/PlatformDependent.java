@@ -175,6 +175,7 @@ public final class PlatformDependent {
             }
         }
         logger.debug("-Dio.netty.maxDirectMemory: {} bytes", maxDirectMemory);
+        //默认按照JVM参数设置的算
         DIRECT_MEMORY_LIMIT = maxDirectMemory >= 1 ? maxDirectMemory : MAX_DIRECT_MEMORY;
 
         int tryAllocateUninitializedArray =
